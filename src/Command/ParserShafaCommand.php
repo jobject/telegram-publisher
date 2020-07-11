@@ -4,8 +4,6 @@ namespace App\Command;
 
 use App\Entity\Product;
 use App\Repository\ProductRepository;
-use App\Telegram\BotApi;
-use App\Entity\Photo;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
@@ -13,7 +11,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DomCrawler\Crawler;
-use InvalidArgumentException;
 
 /**
  * Class ParserShafaCommand
@@ -37,23 +34,19 @@ class ParserShafaCommand extends Command
     private $client;
 
     /**
-     * @var BotApi
-     */
-    private $botApi;
-
-    /**
      * ParserShafaCommand constructor.
      * @param ProductRepository $productRepository
      * @param EntityManagerInterface $entityManager
+     * @param Client $client
      */
     public function __construct(
         ProductRepository $productRepository,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        Client $client
     ) {
         $this->productRepository = $productRepository;
         $this->entityManager = $entityManager;
-        $this->client = new Client();
-        $this->botApi = new BotApi($this->client);
+        $this->client = $client;
 
         parent::__construct();
     }
@@ -127,11 +120,10 @@ class ParserShafaCommand extends Command
             $product->setCaption(
                 "$name\n\nPrice: $price UAH\n\nhttps://shafa.ua$path"
             );
-            $product->setParseMode(Photo::PARSE_MODE_MARKDOWN);
-            $product->setPublished($this->botApi->sendProduct($product));
+            $product->setParseMode('markdown');
             $this->entityManager->persist($product);
 
-            $output->writeln("Publish product {$product->getExternalId()}");
+            $output->writeln("Save product {$product->getExternalId()}");
         }
 
         $this->entityManager->flush();

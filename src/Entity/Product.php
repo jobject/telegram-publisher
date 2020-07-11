@@ -40,7 +40,7 @@ class Product
     /**
      * @ORM\Column(type="boolean")
      */
-    private $published;
+    private $published = false;
 
     /**
      * @return int|null

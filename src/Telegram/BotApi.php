@@ -2,9 +2,8 @@
 
 namespace App\Telegram;
 
-use App\Entity\Photo;
 use App\Entity\Product;
-use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Client;
 use Exception;
 
 /**
@@ -14,7 +13,7 @@ use Exception;
 class BotApi
 {
     /**
-     * @var ClientInterface
+     * @var Client
      */
     private $client;
 
@@ -30,9 +29,9 @@ class BotApi
 
     /**
      * BotApi constructor.
-     * @param ClientInterface $client
+     * @param Client $client
      */
-    public function __construct(ClientInterface $client)
+    public function __construct(Client $client)
     {
         $this->client = $client;
         $this->token = $_ENV['TELEGRAM_TOKEN'];
@@ -40,7 +39,7 @@ class BotApi
     }
 
     /**
-     * @param Photo $product
+     * @param Product $product
      * @return bool
      */
     public function sendProduct(Product $product): bool
@@ -50,8 +49,7 @@ class BotApi
         }
 
         try {
-            $this->client->request(
-                'POST',
+            $this->client->post(
                 "https://api.telegram.org/bot{$this->token}/sendPhoto",
                 [
                     'json' => [
@@ -63,6 +61,7 @@ class BotApi
                 ]
             );
         } catch (Exception $exception) {
+            dd($exception->getMessage(), $exception->getTraceAsString());
         }
 
         return true;
