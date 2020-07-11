@@ -2,17 +2,18 @@
 
 namespace App\Command;
 
+use App\Entity\Product;
+use App\Repository\ProductRepository;
 use App\Telegram\BotApi;
-use App\Telegram\Entity\Photo;
+use App\Entity\Photo;
+use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
-use GuzzleHttp\Cookie\SetCookie;
-use Symfony\Component\Config\Util\Exception\XmlParsingException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Component\VarDumper\Dumper\HtmlDumper;
+use InvalidArgumentException;
 
 /**
  * Class ParserShafaCommand
@@ -20,6 +21,16 @@ use Symfony\Component\VarDumper\Dumper\HtmlDumper;
  */
 class ParserShafaCommand extends Command
 {
+    /**
+     * @var ProductRepository
+     */
+    private $productRepository;
+
+    /**
+     * @var EntityManagerInterface
+     */
+    private $entityManager;
+
     /**
      * @var Client
      */
@@ -32,9 +43,15 @@ class ParserShafaCommand extends Command
 
     /**
      * ParserShafaCommand constructor.
+     * @param ProductRepository $productRepository
+     * @param EntityManagerInterface $entityManager
      */
-    public function __construct()
-    {
+    public function __construct(
+        ProductRepository $productRepository,
+        EntityManagerInterface $entityManager
+    ) {
+        $this->productRepository = $productRepository;
+        $this->entityManager = $entityManager;
         $this->client = new Client();
         $this->botApi = new BotApi($this->client);
 
@@ -58,6 +75,7 @@ class ParserShafaCommand extends Command
         OutputInterface $output
     ): int {
         $output->writeln('Starting parser');
+
         $html = $this->client
             ->get(
                 'https://shafa.ua/my/favourites',
@@ -79,22 +97,46 @@ class ParserShafaCommand extends Command
             ->getBody()
             ->getContents();
 
-        $crawler = new Crawler($html);
+        foreach ((new Crawler($html))->filter('li.b-catalog__item') as $item) {
+            $crawler = new Crawler($item);
+            $externalId = $crawler->filter('[data-id]')->attr('data-id');
+            $product = $this->productRepository->findOneByExternalId(
+                $externalId
+            );
+            if ($product) {
+               continue;
+            }
 
-        foreach ($crawler->filter('li') as $parent) {
-            $parentCrawler = new Crawler($parent);
-            $photo = new Photo();
-            preg_match('/\/([0-9]+)/isu', $parentCrawler->filter('img.js-lazy-img')->attr('data-src'), $image);
+            $product = new Product();
+            $product->setExternalId($externalId);
+
+            preg_match(
+                '/\/([0-9]+)/isu',
+                $crawler->filter('img.js-lazy-img')->attr('data-src'),
+                $image
+            );
             $imageId = $image[1] ?? null;
-            $name = $parentCrawler->filter('[data-product-name]')->attr('data-product-name');
-            $price = $parentCrawler->filter('[data-product-price]')->attr('data-product-price');
-            $path = $parentCrawler->filter('a.js-ga-onclick')->attr('href');
-            $photo->setPhoto("https://images.shafastatic.net/{$imageId}");
-            $photo->setCaption("$name\n\nPrice: $price UAH\n\nhttps://shafa.ua$path");
-            $photo->setParseMode(Photo::PARSE_MODE_MARKDOWN);
+            $product->setPhoto("https://images.shafastatic.net/{$imageId}");
+            $name = $crawler->filter('[data-product-name]')->attr(
+                'data-product-name'
+            );
+            $price = $crawler->filter('[data-product-price]')->attr(
+                'data-product-price'
+            );
+            $path = $crawler->filter('a.js-ga-onclick')->attr('href');
+            $product->setCaption(
+                "$name\n\nPrice: $price UAH\n\nhttps://shafa.ua$path"
+            );
+            $product->setParseMode(Photo::PARSE_MODE_MARKDOWN);
+            $product->setPublished($this->botApi->sendProduct($product));
+            $this->entityManager->persist($product);
 
-            $this->botApi->sendPhoto($photo);
+            $output->writeln("Publish product {$product->getExternalId()}");
         }
+
+        $this->entityManager->flush();
+
+        $output->writeln('Parsing was finished');
 
         return 0;
     }

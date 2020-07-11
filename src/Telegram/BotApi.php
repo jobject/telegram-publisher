@@ -2,7 +2,8 @@
 
 namespace App\Telegram;
 
-use App\Telegram\Entity\Photo;
+use App\Entity\Photo;
+use App\Entity\Product;
 use GuzzleHttp\ClientInterface;
 use Exception;
 
@@ -39,12 +40,12 @@ class BotApi
     }
 
     /**
-     * @param Photo $photo
+     * @param Photo $product
      * @return bool
      */
-    public function sendPhoto(Photo $photo): bool
+    public function sendProduct(Product $product): bool
     {
-        if (!$this->token || !$this->chatId || !$photo->getPhoto()) {
+        if (!$this->token || !$this->chatId || !$product->getPhoto()) {
             return false;
         }
 
@@ -55,13 +56,14 @@ class BotApi
                 [
                     'json' => [
                         'chat_id' => $this->chatId,
-                        'photo' => $photo->getPhoto(),
-                        'caption' => $photo->getCaption(),
-                        'parse_mode' => $photo->getParseMode(),
+                        'photo' => $product->getPhoto(),
+                        'caption' => $product->getCaption(),
+                        'parse_mode' => $product->getParseMode(),
                     ]
                 ]
             );
-        } catch (Exception $exception) {}
+        } catch (Exception $exception) {
+        }
 
         return true;
     }
