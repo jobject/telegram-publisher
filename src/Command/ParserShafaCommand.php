@@ -69,12 +69,35 @@ class ParserShafaCommand extends Command
     ): int {
         $output->writeln('Starting parser');
 
+        $page = 1;
+        $isContinue = true;
+
+        while ($isContinue) {
+            $isContinue = $this->parsePage($output, $page++);
+        }
+
+        $output->writeln('Parsing was finished');
+
+        return 0;
+    }
+
+    /**
+     * @param OutputInterface $output
+     * @param int $page
+     * @return bool
+     * @throws \Doctrine\ORM\NonUniqueResultException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    private function parsePage(OutputInterface $output, int $page): bool
+    {
+        $output->writeln("Page: $page");
+
         $html = $this->client
             ->get(
                 'https://shafa.ua/my/favourites',
                 [
                     'query' => [
-                        'page' => 1,
+                        'page' => $page,
                     ],
                     'cookies' => CookieJar::fromArray(
                         [
@@ -90,6 +113,8 @@ class ParserShafaCommand extends Command
             ->getBody()
             ->getContents();
 
+        $isNotEmpty = false;
+
         foreach ((new Crawler($html))->filter('li.b-catalog__item') as $item) {
             $crawler = new Crawler($item);
             $externalId = $crawler->filter('[data-id]')->attr('data-id');
@@ -97,9 +122,10 @@ class ParserShafaCommand extends Command
                 $externalId
             );
             if ($product) {
-               continue;
+                continue;
             }
 
+            $isNotEmpty = true;
             $product = new Product();
             $product->setExternalId($externalId);
 
@@ -128,8 +154,6 @@ class ParserShafaCommand extends Command
 
         $this->entityManager->flush();
 
-        $output->writeln('Parsing was finished');
-
-        return 0;
+        return $isNotEmpty;
     }
 }
