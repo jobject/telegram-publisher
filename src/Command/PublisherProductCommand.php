@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use DateTimeZone;
+use DateTime;
 
 /**
  * Class PublisherProductCommand
@@ -64,24 +66,41 @@ class PublisherProductCommand extends Command
         InputInterface $input,
         OutputInterface $output
     ): int {
-        $output->writeln('Starting publisher');
+        while (true) {
+            $output->writeln('Starting publisher');
 
-        $products = $this->productRepository->findBy(
-            ['published' => false],
-            null,
-            10
-        );
+            $currentHour = (new DateTime(
+                'now', new DateTimeZone('Europe/Kiev')
+            ))->format('G');
 
-        $output->writeln('Found ' . count($products) . ' products');
+            if ($currentHour >= 8 && $currentHour < 23) {
+                $products = $this->productRepository->findBy(
+                    ['published' => false],
+                    null,
+                    10
+                );
 
-        foreach ($products as $product) {
-            $product->setPublished($this->botApi->sendProduct($product));
-            $output->writeln("Publish product {$product->getExternalId()}");
+                $output->writeln('Found ' . count($products) . ' products');
+
+                foreach ($products as $product) {
+                    $product->setPublished(
+                        $this->botApi->sendProduct($product)
+                    );
+                    $output->writeln(
+                        "Publish product {$product->getExternalId()}"
+                    );
+                }
+
+                $this->entityManager->flush();
+
+                $output->writeln('Publishing was finished');
+            } else {
+                $output->writeln('Publishing was skipped');
+            }
+
+            $output->writeln('Sleep for half an hour');
+            sleep(1800);
         }
-
-        $this->entityManager->flush();
-
-        $output->writeln('Publishing was finished');
 
         return 0;
     }

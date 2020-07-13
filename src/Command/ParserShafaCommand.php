@@ -67,16 +67,20 @@ class ParserShafaCommand extends Command
         InputInterface $input,
         OutputInterface $output
     ): int {
-        $output->writeln('Starting parser');
+        while (true) {
+            $output->writeln('Starting parser');
 
-        $page = 1;
-        $isContinue = true;
+            $page = 1;
+            $isContinue = true;
 
-        while ($isContinue) {
-            $isContinue = $this->parsePage($output, $page++);
+            while ($isContinue) {
+                $isContinue = $this->parsePage($output, $page++);
+            }
+
+            $output->writeln('Parsing was finished');
+            $output->writeln('Sleep for one hour');
+            sleep(3600);
         }
-
-        $output->writeln('Parsing was finished');
 
         return 0;
     }
