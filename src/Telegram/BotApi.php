@@ -61,7 +61,52 @@ class BotApi
                 ]
             );
         } catch (Exception $exception) {
-            dd($exception->getMessage(), $exception->getTraceAsString());
+            dd(
+                $exception->getMessage(),
+                $product,
+                $exception->getTraceAsString()
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * @param Product[] $products
+     * @return bool
+     */
+    public function sendProducts(array $products): bool
+    {
+        if (!$this->token || !$this->chatId || empty($products)) {
+            return false;
+        }
+
+        try {
+            $this->client->post(
+                "https://api.telegram.org/bot{$this->token}/sendMediaGroup",
+                [
+                    'json' => [
+                        'chat_id' => $this->chatId,
+                        'media' => array_map(
+                            function (Product $product): array {
+                                return [
+                                    'type' => 'photo',
+                                    'media' => $product->getPhoto(),
+                                    'caption' => $product->getCaption(),
+                                    'parse_mode' => $product->getParseMode(),
+                                ];
+                            },
+                            $products
+                        ),
+                    ]
+                ]
+            );
+        } catch (Exception $exception) {
+            dd(
+                $exception->getMessage(),
+                $product,
+                $exception->getTraceAsString()
+            );
         }
 
         return true;

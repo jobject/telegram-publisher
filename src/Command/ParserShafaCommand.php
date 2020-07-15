@@ -140,17 +140,19 @@ class ParserShafaCommand extends Command
             );
             $imageId = $image[1] ?? null;
             $product->setPhoto("https://images.shafastatic.net/{$imageId}");
-            $name = $crawler->filter('[data-product-name]')->attr(
-                'data-product-name'
+            $description = htmlentities(
+                $crawler->filter('[data-product-name]')->attr(
+                    'data-product-name'
+                )
             );
             $price = $crawler->filter('[data-product-price]')->attr(
                 'data-product-price'
             );
-            $path = $crawler->filter('a.js-ga-onclick')->attr('href');
+            $url = "https://shafa.ua{$crawler->filter('a.js-ga-onclick')->attr('href')}";
             $product->setCaption(
-                "$name\n\nPrice: $price UAH\n\nhttps://shafa.ua$path"
+                "$description\n\n<b>Ціна:</b> $price грн.\n\n<a href=\"{$url}\">{$url}</a>"
             );
-            $product->setParseMode('markdown');
+            $product->setParseMode('html');
             $this->entityManager->persist($product);
 
             $output->writeln("Save product {$product->getExternalId()}");
