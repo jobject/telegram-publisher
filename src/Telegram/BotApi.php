@@ -34,8 +34,8 @@ class BotApi
     public function __construct(Client $client)
     {
         $this->client = $client;
-        $this->token = $_ENV['TELEGRAM_TOKEN'];
-        $this->chatId = $_ENV['TELEGRAM_CHAT_ID'];
+        $this->token = getenv('TELEGRAM_TOKEN');
+        $this->chatId = getenv('TELEGRAM_CHAT_ID');
     }
 
     /**

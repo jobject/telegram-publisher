@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Repository\ProductRepository;
 use App\Telegram\BotApi;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -33,19 +34,27 @@ class PublisherProductCommand extends Command
     private $botApi;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * PublisherProductCommand constructor.
      * @param ProductRepository $productRepository
      * @param EntityManagerInterface $entityManager
      * @param BotApi $botApi
+     * @param LoggerInterface $logger
      */
     public function __construct(
         ProductRepository $productRepository,
         EntityManagerInterface $entityManager,
-        BotApi $botApi
+        BotApi $botApi,
+        LoggerInterface $logger
     ) {
         $this->productRepository = $productRepository;
         $this->entityManager = $entityManager;
         $this->botApi = $botApi;
+        $this->logger = $logger;
 
         parent::__construct();
     }
@@ -67,7 +76,7 @@ class PublisherProductCommand extends Command
         OutputInterface $output
     ): int {
         while (true) {
-            $output->writeln('Starting publisher');
+            $this->logger->info('Starting publisher');
 
             $currentHour = (new DateTime(
                 'now', new DateTimeZone('Europe/Kiev')
@@ -80,25 +89,25 @@ class PublisherProductCommand extends Command
                     10
                 );
 
-                $output->writeln('Found ' . count($products) . ' products');
+                $this->logger->info('Found ' . count($products) . ' products');
 
                 foreach ($products as $product) {
                     $product->setPublished(
                         $this->botApi->sendProduct($product)
                     );
-                    $output->writeln(
+                    $this->logger->info(
                         "Publish product {$product->getExternalId()}"
                     );
                 }
 
                 $this->entityManager->flush();
 
-                $output->writeln('Publishing was finished');
+                $this->logger->info('Publishing was finished');
             } else {
-                $output->writeln('Publishing was skipped');
+                $this->logger->info('Publishing was skipped');
             }
 
-            $output->writeln('Sleep for half an hour');
+            $this->logger->info('Sleep for half an hour');
             sleep(1800);
         }
 

@@ -7,6 +7,7 @@ use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -34,19 +35,27 @@ class ParserShafaCommand extends Command
     private $client;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * ParserShafaCommand constructor.
      * @param ProductRepository $productRepository
      * @param EntityManagerInterface $entityManager
      * @param Client $client
+     * @param LoggerInterface $logger
      */
     public function __construct(
         ProductRepository $productRepository,
         EntityManagerInterface $entityManager,
-        Client $client
+        Client $client,
+        LoggerInterface $logger
     ) {
         $this->productRepository = $productRepository;
         $this->entityManager = $entityManager;
         $this->client = $client;
+        $this->logger = $logger;
 
         parent::__construct();
     }
@@ -68,17 +77,16 @@ class ParserShafaCommand extends Command
         OutputInterface $output
     ): int {
         while (true) {
-            $output->writeln('Starting parser');
+            $this->logger->info('Starting parser');
 
             $page = 1;
             $isContinue = true;
 
             while ($isContinue) {
-                $isContinue = $this->parsePage($output, $page++);
+                $isContinue = $this->parsePage($page++);
             }
 
-            $output->writeln('Parsing was finished');
-            $output->writeln('Sleep for one hour');
+            $this->logger->info("Parsing was finished\nSleep for one hour");
             sleep(3600);
         }
 
@@ -86,15 +94,14 @@ class ParserShafaCommand extends Command
     }
 
     /**
-     * @param OutputInterface $output
      * @param int $page
      * @return bool
      * @throws \Doctrine\ORM\NonUniqueResultException
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    private function parsePage(OutputInterface $output, int $page): bool
+    private function parsePage(int $page): bool
     {
-        $output->writeln("Page: $page");
+        $this->logger->info("Page: $page");
 
         $html = $this->client
             ->get(
@@ -105,7 +112,7 @@ class ParserShafaCommand extends Command
                     ],
                     'cookies' => CookieJar::fromArray(
                         [
-                            'sessionid' => $_ENV['SHAFA_SESSION_ID'],
+                            'sessionid' => getenv('SHAFA_SESSION_ID'),
                         ],
                         'shafa.ua'
                     ),
@@ -155,7 +162,7 @@ class ParserShafaCommand extends Command
             $product->setParseMode('html');
             $this->entityManager->persist($product);
 
-            $output->writeln("Save product {$product->getExternalId()}");
+            $this->logger->info("Save product {$product->getExternalId()}");
         }
 
         $this->entityManager->flush();
